@@ -1,0 +1,7 @@
+/Keystrokes*
+hd.sh
+slurm*
+wandb
+checkpoints
+/__pycache__*
+.gitingore
