@@ -1,85 +1,146 @@
-import hydra
 import os
 import wandb
+import random
 import torch
+import torch.nn as nn
 import lightning.pytorch as pl
 
-from key_datamodule import KeyDataModule
+
+from key_dm import KeyDataModule
 from key_module import KeyModule
 from lightning.pytorch.loggers import WandbLogger
 
 from lightning.pytorch.callbacks import LearningRateMonitor
-from lightning.pytorch.profilers import PyTorchProfiler
-from lightning.pytorch.profilers import SimpleProfiler, AdvancedProfiler
-from lightning.pytorch.loggers import TensorBoardLogger
+# from lightning.pytorch.loggers import TensorBoardLogger
 
+import hydra
 from omegaconf import DictConfig, OmegaConf
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
-def stroke(cfg: DictConfig) -> None:
+from utils import *
 
-  torch.set_float32_matmul_precision("medium")
+def train(cfg: DictConfig, key_module):
+
+  key_data_module = KeyDataModule(cfg)
+
+  if cfg.wandb.use:
+    wandb.login(key="63faf0d0b57a1855a357085c29f385f911743759")
+    logger=WandbLogger(
+            project=cfg.wandb.project,
+            config=OmegaConf.to_container(cfg),
+            name=cfg.wandb.name,
+            save_dir=os.getcwd(),
+            offline=False,
+        )
+  else:
+    logger=None
+
+  checkpoint_callback = pl.callbacks.ModelCheckpoint(
+          monitor="val_eer",
+          dirpath=os.getcwd() + cfg.checkpoint_dir,
+          filename='{epoch}_{val_eer:.4f}',
+          save_top_k=1,
+          mode="min",
+      )
   
-  dm = KeyDataModule(
-    root_dir=cfg.ds_params.data_path,
-    user_cnt=cfg.ds_params.user_cnt,
-    max_seq_len=cfg.ds_params.max_seq_len,
-    test_size=cfg.ds_params.test_size,
-    replace_prob=cfg.ds_params.replace_prob,
-    user_prob=cfg.ds_params.user_prob,
-    batch_size=cfg.training_params.batch_size,
-    val_batch_size=cfg.training_params.val_batch_size,
-    num_workers=cfg.ds_params.num_workers,
-    dataset_multiplier=cfg.ds_params.dataset_multiplier
-  )
+  trainer = pl.Trainer(
+        accelerator="gpu",
+        devices=1,
+        precision="bf16-mixed",
+        max_epochs=cfg.train.max_epochs,
+        callbacks=[LearningRateMonitor(logging_interval="step"),
+                    checkpoint_callback],
+        check_val_every_n_epoch=cfg.train.check_val_every_n_epoch,
+        logger=logger,
+        gradient_clip_val=1.0,
+        log_every_n_steps=20,
+        # profiler="advanced",
+        strategy="ddp",
+        )
 
-  model = KeyModule(
-      user_cnt=dm.user_cnt,
-      feat_cnt=cfg.ds_params.feat_cnt,
-      key_cnt=cfg.ds_params.key_cnt,
+  trainer.fit(key_module, key_data_module)
+  
+
+@hydra.main(version_base=None, config_path="conf", config_name="config")
+def main(cfg: DictConfig) -> None:
+
+  torch.set_float32_matmul_precision("high")
+  torch.cuda.seed_all()
+  random.seed(42)
+
+  if cfg.prep_data:
+    # cleanup_data(cfg.pretrain.data.path)
+    # cleanup_data(cfg.finetune.data.path)    
+    prepare_data_benchmark(cfg)
+    exit()
+
+  if cfg.new_finetune_data:
+    # read the user_mapping
+    curr_fine_mapping = pickle.load(open(cfg.finetune.data.path + "user_mapping.pkl", "rb"))
+    cleanup_data(cfg.finetune.data.path, remove_mapping=False)
+    split_data(curr_fine_mapping, cfg.finetune.data.train_size, cfg.finetune.data.test_size, cfg.finetune.data.path, cfg.raw_data_path)
+    print("New finetune data created.")
+    exit()
+
+
+  if cfg.pretrain.run:
+    pretrain_cfg = cfg.pretrain
+
+    key_module = KeyModule(
+      user_cnt=pretrain_cfg.data.user_cnt,
+      feat_cnt=cfg.model_params.feat_cnt,
+      key_cnt=cfg.model_params.key_cnt,
       key_emb_size=cfg.model_params.key_emb_size,
       dim_ff=cfg.model_params.dim_ff,
       num_heads=cfg.model_params.num_heads,
       num_layers=cfg.model_params.num_layers,
       dropout=cfg.model_params.trf_dropout,
-      lr=cfg.training_params.lr,
+      lr=pretrain_cfg.train.lr,
       causal_att=cfg.model_params.causal_att,
       use_user_emb=cfg.model_params.use_user_emb,
-  )
+    )
 
-  if cfg.training_params.train:
-    if cfg.training_params.wandb_log:
-      checkpoint_callback = pl.callbacks.ModelCheckpoint(
-          monitor="val_token_acc",
-          dirpath=os.getcwd(),
-          filename="best_model",
-          save_top_k=1,
-          mode="max",
-      )
-      wandb.login(key="63faf0d0b57a1855a357085c29f385f911743759")
-      trainer = pl.Trainer(
-          accelerator="gpu",
-          precision="bf16-mixed",
-          devices=cfg.training_params.num_gpus,
-          max_epochs=cfg.training_params.max_epochs,
-          callbacks=[LearningRateMonitor(logging_interval="step")
-                    #  checkpoint_callback
-                     ],
-          check_val_every_n_epoch=cfg.training_params.check_val_every_n_epoch,
-          logger=WandbLogger(
-              project=cfg.training_params.wandb_project,
-              config=cfg,
-              name="train_key_emb",
-              save_dir=os.getcwd(),
-              offline=False,
-          ),
-          log_every_n_steps=2,
-          strategy="ddp",
-        )
-      
-      trainer.fit(model, dm)
-      wandb.finish()
+    train(pretrain_cfg, key_module)
+
+  if cfg.finetune.run:
+
+    finetune_cfg = cfg.finetune
+
+    key_module = KeyModule.load_from_checkpoint(
+      finetune_cfg.checkpoint,
+      user_cnt=cfg.pretrain.data.user_cnt,
+      feat_cnt=cfg.model_params.feat_cnt,
+      key_cnt=cfg.model_params.key_cnt,
+      key_emb_size=cfg.model_params.key_emb_size,
+      dim_ff=cfg.model_params.dim_ff,
+      num_heads=cfg.model_params.num_heads,
+      num_layers=cfg.model_params.num_layers,
+      dropout=cfg.model_params.trf_dropout,
+      lr=cfg.finetune.train.lr,
+      causal_att=cfg.model_params.causal_att,
+      use_user_emb=cfg.model_params.use_user_emb)
+
+    # get user embeddings from model
+    user_emb = key_module.stroke_net.user_embedding.weight.detach().cpu()
+
+    # compute average user embedding
+    avg_user_emb = torch.mean(user_emb, axis=0)
+
+    # replace user embeddings table with average user embedding
+    finetune_user_emb = torch.nn.Embedding(
+      cfg.finetune.data.user_cnt, avg_user_emb.shape[0])
+    
+    # finetune_user_emb.weight = nn.Parameter(avg_user_emb.repeat(cfg.finetune.data.user_cnt, 1))
+
+    # replace user embeddings table in model
+    key_module.stroke_net.user_embedding = finetune_user_emb
+
+    # # freeze key embeddings
+    # key_module.stroke_net.keycode_embedding.weight.requires_grad = False
+
+    train(finetune_cfg, key_module)
+    
+
 
 
 if __name__ == "__main__":
-  stroke()
+  main()

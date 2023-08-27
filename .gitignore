@@ -2,7 +2,15 @@
 hd.sh
 slurm*
 wandb
-checkpoints
+/checkpoints*
+/Keystrokes*
+/lightning_logs*
+/outputs*
+/wandb*
+/.hydra*
+/__pycache__*
 /__pycache__*
 .gitignore*
 .DS_Store*
+/benchmark*
+/not_benchmark*

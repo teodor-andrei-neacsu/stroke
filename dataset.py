@@ -58,6 +58,20 @@ def bigram_feat(session, max_len):
   return typing_features
 
 
+def to_event_seq(session):
+  # transform (timestamp_press, timestamp_release, keycode) to (timestamp, event, keycode)
+  seq = []
+  for idx, (timestamp_press, timestamp_release, keycode) in enumerate(session):
+    seq.append((timestamp_press, 1, keycode))
+    seq.append((timestamp_release, 0, keycode))
+
+  # sort by timestamp
+  seq = sorted(seq, key=lambda x: x[0])
+
+  return seq
+
+
+
 class BigramDataset(Dataset):
 
   def __init__(self,
@@ -87,6 +101,9 @@ class BigramDataset(Dataset):
 
         raw_sesh = eval(row['SEQUENCE'])
         bi_feat_sesh = bigram_feat(raw_sesh, max_len=self.max_len)
+
+        if bi_feat_sesh == []:
+          continue
 
         bigrams = [bigram for bigram, feat in bi_feat_sesh]
         feats = [feat for bigram, feat in bi_feat_sesh]
@@ -163,9 +180,6 @@ class BigramDataset(Dataset):
     return self.sessions_bigrams_0[index], self.sessions_bigrams_1[
         index], self.sessions_feats[index], self.users[index], target, impostor_user_prob
 
-  # def get_item_new(self,)
-
-
   def __len__(self):
     return len(self.sessions_bigrams_0)
 
@@ -176,13 +190,8 @@ class BigramPlusDataset(Dataset):
                data_path,
                max_len=50,
                replace_prob=[.25, .5, .25],
-               user_prob=0.5,
                dataset_multiplier=1):
     
-    print("=" * 50)
-    print("LOADING  LOADING LOADING BigramPlusDataset")
-    print("=" * 50)
-
     user_files = os.listdir(data_path)
     self.users_bigr = defaultdict(lambda: defaultdict(list))
     self.bigr_users = defaultdict(list)
@@ -192,7 +201,6 @@ class BigramPlusDataset(Dataset):
     self.sessions_bigrams_1 = []
     self.users = []
     self.token_replace_prob = replace_prob
-    self.user_replace_prob = user_prob
     self.users_dict = defaultdict(list)
     self.user_bigram_count = defaultdict(lambda: defaultdict(int))
 
@@ -204,7 +212,13 @@ class BigramPlusDataset(Dataset):
       for i, row in user_df.iterrows():
 
         raw_sesh = eval(row['SEQUENCE'])
+
+        raw_sesh = to_event_seq(raw_sesh)
+
         bi_feat_sesh = bigram_feat(raw_sesh, max_len=self.max_len)
+
+        if bi_feat_sesh == []:
+          continue
 
         bigrams = [bigram for bigram, feat in bi_feat_sesh]
         feats = [feat for bigram, feat in bi_feat_sesh]
@@ -226,10 +240,12 @@ class BigramPlusDataset(Dataset):
     # set(list) on self.big_users
     self.bigr_users = {k: set(v) for k, v in self.bigr_users.items()}
 
+    self.user_set = set(self.users)
     self.users = self.users * dataset_multiplier
     self.sessions_feats = self.sessions_feats * dataset_multiplier
     self.sessions_bigrams_0 = self.sessions_bigrams_0 * dataset_multiplier
     self.sessions_bigrams_1 = self.sessions_bigrams_1 * dataset_multiplier
+
 
     self.user_bigram_count = {k: {k1: len(v1) for k1, v1 in v.items()} for k, v in self.users_bigr.items()}
 
@@ -249,7 +265,8 @@ class BigramPlusDataset(Dataset):
     if impostor_user_prob == 1:
       # negative sample -> the sequence is replaced with a random one from other user
       # get random user
-      random_user = random.choice(list(set(self.users) - set([self.users[index]])))
+      # set - current user
+      random_user = random.choice(list(self.user_set - set([self.users[index]])))
 
       # get random session from random user
       random_session = random.choice(self.users_dict[random_user])
@@ -291,8 +308,11 @@ class BigramPlusDataset(Dataset):
 
 class BigramDatasetVal(Dataset):
 
-  def __init__(self, data_path, max_len) -> None:
+  def __init__(self, data_path, max_len, val_user_cnt) -> None:
     user_files = os.listdir(data_path)
+
+    # randomly selsct val_user_cnt users§
+    user_files = random.sample(user_files, val_user_cnt)
 
     self.max_len = max_len
 
@@ -320,7 +340,13 @@ class BigramDatasetVal(Dataset):
       for i, row in user_df.iterrows():
 
         raw_sesh = eval(row['SEQUENCE'])
+
+        raw_sesh = to_event_seq(raw_sesh)
+
         bi_feat_sesh = bigram_feat(raw_sesh, max_len=self.max_len)
+
+        if bi_feat_sesh == []:
+          continue
 
         bigrams = [bigram for bigram, feat in bi_feat_sesh]
         feats = [feat for bigram, feat in bi_feat_sesh]
@@ -360,6 +386,8 @@ class BigramDatasetVal(Dataset):
     for impostor in self.unique_users:
       if impostor != user_id:
         impostor_samples = self.users_dict[impostor]
+        if impostor_samples == []:
+          continue
         random_sample = random.choice(impostor_samples)
         neg_feats.append(random_sample[0])
         neg_bigrams_0.append(random_sample[1])

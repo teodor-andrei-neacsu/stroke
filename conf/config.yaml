@@ -1,34 +1,77 @@
-ds_params:
-  data_path: "./Keystrokes/"
-  user_cnt: 2000 # number of users
-  max_seq_len: 50 # max sequence length of typing sequence
-  key_cnt: 256 # number of possible keys
-  test_size: 3 # number of test samples /15
-  feat_cnt: 4 # number of features
-  num_workers: 4 # number of workers for dataloader
-  replace_prob: 0.5 # 
-  user_prob: 0 # ratio of samples with replaced tokens 
-  dataset_multiplier: 5 # number of times to repeat the dataset
+prep_data: False
+raw_data_path: "./Keystrokes_benchmark/clean/"
+
+new_finetune_data: False # changed the number of sequences per user
+
+pretrain:
+  run: True
+  checkpoint_dir: "/checkpoints_bench/pre/"
+
+  data:
+    # path: "./Keystrokes_benchmark/not_benchmark/"
+    path: "./Keystrokes_benchmark/pretrain/"
+    user_cnt: 10000 # number of users
+    max_seq_len: 50 # max sequence length of typing sequence
+    train_size: 12
+    test_size: 3 # number of test samples /15
+    num_workers: 8 # number of workers for dataloader
+    corruption_probs: [.1, .6, .3] # probabilities of corruption [positive_rate, negative_rate, corrupt_rate]
+
+  train:
+    batch_size: 4096 # batch size
+    val_batch_size: 1 # DO NOT CHANGE
+    val_user_cnt: 1000 # number of users for validation
+    dataset_multiplier: 10 # number of times to repeat the dataset
+    max_epochs: 100 # number of epochs
+    check_val_every_n_epoch: 1
+    lr: 2e-4 # learning rate  
+
+  wandb:
+    use: False
+    project: pre_bench_mob
+    name: pre_bench_mob
+
+finetune:
+  run: False
+  checkpoint: "./checkpoints_bench/pre/epoch=63_val_eer=0.0284.ckpt"
+  checkpoint_dir: "/checkpoints_bench/fin/"
+
+  data:
+    # path: "./Keystrokes_benchmark/benchmark/"
+    path: "./Keystrokes_benchmark/finetune/"
+    user_cnt: 1000 # number of users
+    max_seq_len: 50 # max sequence length of typing sequence
+    train_size: 5
+    test_size: 5 # the protocol in TypeNet uses 5 samples for testing
+    num_workers: 8 # number of workers for dataloader
+    corruption_probs: [.1, .8, .1] # probabilities of corruption [positive_rate, negative_rate, corrupt_rate]
+
+  train:
+    batch_size: 4096 # batch size
+    val_batch_size: 1 # DO NOT CHANGE
+    val_user_cnt: 1000 # number of users for validation
+    dataset_multiplier: 10 # number of times to repeat the dataset
+    max_epochs: 50 # number of epochs
+    check_val_every_n_epoch: 1
+    lr: 2e-4 # learning rate
+
+  wandb:
+    use: True
+    project: fine_bench_mob
+    name: fine_bench_mob
+
+  extra_info: "emb reinit"
 
 model_params:
-  key_emb_size: 256 # key embedding size
-  dim_ff: 512 # feed forward dimension
+  feat_cnt: 4
+  key_cnt: 256 # number of possible keys
+  key_emb_size: 128 # key embedding size
+  dim_ff: 384 # feed forward dimension
   num_heads: 12 # number of heads in multi-head attention
-  num_layers: 6 # number of layers in transformer
+  num_layers: 12 # number of layers in transformer
   trf_dropout: 0.2 # transformer dropout
-  causal_att: True # whether to use causal attention
-  use_user_emb: False # whether to use user embedding (appended)
+  causal_att: False # whether to use causal attention
+  use_user_emb: True # whether to use user embedding
+  mlp_before_trf: True # whether to use mlp before transformer
 
-training_params:
-  batch_size: 128 # training batch size
-  val_batch_size: 8 # validation batch size
-  dataset_multiplier: 4 # number of times to repeat the dataset
-  max_epochs: 1000 # number of epochs
-  lr: 0.0001 # learning rate
-  check_val_every_n_epoch: 200
-  num_gpus: 1
-  train: True
-  wandb_log: True
-  wandb_project: move_gpu_util
-  wandb_name: key-hyper
 

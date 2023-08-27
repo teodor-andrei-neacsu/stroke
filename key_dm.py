@@ -13,60 +13,20 @@ class KeyDataModule(pl.LightningDataModule):
   """
 
   def __init__(self,
-               root_dir: str = "",
-               user_cnt: int = 100,
-               max_seq_len: int = 50,
-               test_size: int = 5,
-               replace_prob: float = 0.1,
-               user_prob: float = 0.5,
-               batch_size: int = 512,
-               val_batch_size: int = 16,
-               val_user_cnt: int = 1000,
-               num_workers: int = 4,
-               dataset_multiplier: int = 1):
+               cfg):
     super().__init__()
-    self.root_dir = root_dir
-    self.user_cnt = user_cnt
-    self.max_seq_len = max_seq_len
-    self.test_size = test_size
-    self.replace_prob = replace_prob
-    self.user_prob = user_prob
-    self.batch_size = batch_size
-    self.val_batch_size = val_batch_size
-    self.val_user_cnt = val_user_cnt
-    self.num_workers = num_workers
-    self.dataset_multiplier = dataset_multiplier
-    self.raw_data_dir = os.path.join(self.root_dir, "clean")
+    self.root_dir = cfg.data.path
+    self.user_cnt = cfg.data.user_cnt
+    self.max_seq_len = cfg.data.max_seq_len
+    self.test_size = cfg.data.test_size
+    self.corruption_probs = cfg.data.corruption_probs
+    self.batch_size = cfg.train.batch_size
+    self.val_batch_size = cfg.train.val_batch_size
+    self.val_user_cnt = cfg.train.val_user_cnt
+    self.num_workers = cfg.data.num_workers
+    self.dataset_multiplier = cfg.train.dataset_multiplier
     self.train_dir = os.path.join(self.root_dir, "train")
     self.test_dir = os.path.join(self.root_dir, "test")
-
-  def split_data(self, user_mapping):
-    """
-    Split the data into train and test folders.
-    """
-    train_files = os.listdir(self.train_dir)
-    test_files = os.listdir(self.test_dir)
-
-    for file in train_files:
-      os.remove(os.path.join(self.train_dir, file))
-
-    for file in test_files:
-      os.remove(os.path.join(self.test_dir, file))
-
-    for user_file, user_id in user_mapping.items():
-      user_df = pd.read_csv(os.path.join(self.raw_data_dir, user_file))
-      # split data into train and test
-      train_df, test_df = train_test_split(user_df,
-                                           test_size=self.test_size,
-                                           random_state=42)
-      # save train and test data
-
-      train_df.to_csv(os.path.join(self.train_dir,
-                                   str(user_id) + ".csv"),
-                      index=False)
-      test_df.to_csv(os.path.join(self.test_dir,
-                                  str(user_id) + ".csv"),
-                     index=False)
 
   def collate_fn(self, batch):
     b0, b1, feat, user, target, user_target = zip(*batch)
@@ -81,6 +41,7 @@ class KeyDataModule(pl.LightningDataModule):
     b1_padded = torch.nn.utils.rnn.pad_sequence(b1,
                                                 batch_first=True,
                                                 padding_value=0)
+    
     feat_padded = torch.nn.utils.rnn.pad_sequence(feat,
                                                   batch_first=True,
                                                   padding_value=0)
@@ -122,6 +83,12 @@ class KeyDataModule(pl.LightningDataModule):
     b1_padded = torch.nn.utils.rnn.pad_sequence(b1,
                                                 batch_first=True,
                                                 padding_value=0)
+    
+    # print("FEAT SHAPE")
+    # print(len(feat))
+    # for f in feat:
+    #   print(f.shape)
+
     feat_padded = torch.nn.utils.rnn.pad_sequence(feat,
                                                   batch_first=True,
                                                   padding_value=0)
@@ -156,12 +123,9 @@ class KeyDataModule(pl.LightningDataModule):
     if len(os.listdir(self.train_dir)) > 0:
       return
     else:
-      valid_user_files = os.listdir(self.raw_data_dir)
-      chosen_users = random.sample(valid_user_files, self.user_cnt)
-      user_mapping = {user: i for i, user in enumerate(chosen_users)}
-      self.split_data(user_mapping)
-      print("Data prepared.")
-  
+      # assert len(os.listdir(self.raw_data_dir)) > 0 , "No data found in {}".format(self.raw_data_dir)
+      pass
+    
   def setup(self, stage=None):
     """
     Load the data from the train and test folders.
@@ -169,7 +133,7 @@ class KeyDataModule(pl.LightningDataModule):
     if stage == "fit" or stage is None:      
       self.train_dataset = BigramPlusDataset(self.train_dir,
                                          self.max_seq_len,
-                                         self.replace_prob,
+                                         self.corruption_probs,
                                          self.dataset_multiplier)
       
     self.val_dataset = BigramDatasetVal(self.test_dir,
@@ -186,7 +150,7 @@ class KeyDataModule(pl.LightningDataModule):
                                        pin_memory=True)
 
   def val_dataloader(self):
-    assert self.val_batch_size == 1, "val_batch_size must be 1"
+    # assert self.val_batch_size == 1, "val_batch_size must be 1"
     return torch.utils.data.DataLoader(self.val_dataset,
                                        batch_size=self.val_batch_size,
                                        shuffle=False,
