@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import lightning.pytorch as pl
 
-
+from rff import GaussianFourierFeatureTransform
 from key_dm import KeyDataModule
 from key_module import KeyModule
 from lightning.pytorch.loggers import WandbLogger

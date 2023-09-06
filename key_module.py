@@ -77,13 +77,7 @@ class KeyModule(pl.LightningModule):
     )
     self.cross_token = nn.BCEWithLogitsLoss()
     self.cross_user = nn.BCEWithLogitsLoss()
-    
-    self.token_f1 = torchmetrics.F1Score(task="binary", average="macro", ignore_index=-1)
-    self.user_f1 = torchmetrics.F1Score(task="binary", average="macro")
 
-    self.val_user_f1 = torchmetrics.F1Score(task="binary", average="macro")
-    self.val_token_f1 = torchmetrics.F1Score(task="binary", average="macro", ignore_index=-1)
-    
     self.val_eer = EER()
     self.val_eer_token = EER()
 
@@ -124,17 +118,6 @@ class KeyModule(pl.LightningModule):
                 batch_size=batch_size,
                 )  
 
-    tok_pred = torch.argmax(y_pred, dim=-1)
-    self.token_f1(tok_pred, y)
-    self.log("token_f1",
-        self.token_f1,
-        on_step=False,
-        on_epoch=True,
-        prog_bar=True,
-        logger=True,
-        batch_size=batch_size,
-        )
-
     if self.use_user_emb:
       user_target_oh = F.one_hot(user_target, num_classes=2).float()
       loss_user = self.cross_user(u_pred, user_target_oh)
@@ -146,17 +129,6 @@ class KeyModule(pl.LightningModule):
                 logger=True,
                 batch_size=batch_size,
                 )
-
-      user_pred = torch.argmax(u_pred, dim=-1)      
-      self.user_f1(user_pred, user_target)
-      self.log("user_f1",
-        self.user_f1,
-        on_step=False,
-        on_epoch=True,
-        prog_bar=True,
-        logger=True,
-        batch_size=batch_size,
-        )
 
       loss = loss_token + loss_user
       self.log("train_loss_combined",
@@ -182,9 +154,6 @@ class KeyModule(pl.LightningModule):
 
     y_pred, u_pred = self.forward(batch[:-2])
 
-    y_pred_og = y_pred.clone()
-    y_og = y.clone()
-
     # this aggregates all tokens into a large tensor
     y_pred = y_pred.view(-1, y_pred.shape[-1])
     y = y.view(-1)
@@ -205,17 +174,6 @@ class KeyModule(pl.LightningModule):
              logger=True,
              batch_size=batch_size,
              )
-
-    tok_pred = torch.argmax(y_pred, dim=-1)
-    self.val_token_f1(tok_pred, y)
-    self.log("val_token_f1",
-        self.val_token_f1,
-        on_step=False,
-        on_epoch=True,
-        prog_bar=True,
-        logger=True,
-        batch_size=batch_size,
-        )
     
     if self.use_user_emb:
 
@@ -232,14 +190,6 @@ class KeyModule(pl.LightningModule):
             )
 
       u_soft = torch.softmax(u_pred, dim=-1)[:, 1]
-      # for each sample in the batch we have to compute the eer
-
-      # print("u_soft", u_soft.shape)
-      # print("user_target", user_target.shape)
-      # print(u_soft.shape, user_target.shape)
-
-      # exit()
-
       self.val_eer(u_soft, user_target)
       self.log("val_eer",
               self.val_eer,
@@ -249,54 +199,6 @@ class KeyModule(pl.LightningModule):
               logger=True,
               batch_size=batch_size,
               )
-      
-      non_pad_idx = torch.where(y_og != -1, 1, 0).float()
-
-      # print("non_pad_idx", non_pad_idx.shape)
-
-      denom = torch.sum(non_pad_idx, dim=-1, keepdim=True).float().squeeze(-1)
-
-      # print("denom", denom.shape)
-
-      # # percentage of 1 classified tokens
-      token_pred_1 = (torch.argmax(y_pred_og, dim=-1, keepdim=True) == 1).squeeze(-1).float()
-
-      # print("token_pred_1", token_pred_1.shape)
-      # print("non_tok_pred_1", non_tok_pred_1.shape)
-
-      # print("sum", torch.sum(token_pred_1 * non_pad_idx, dim=-1).float())
-      # print("denom", denom)
-
-      token_pred_1_perc = torch.sum(token_pred_1 * non_pad_idx, dim=-1).float() / denom
-
-
-      # print("token_pred_1_perc", token_pred_1_perc)
-      # print("user_target", user_target)
-
-      # print("token_pred_1_perc", token_pred_1_perc.shape)
-      # print("user_target", user_target.shape)
-
-      self.val_eer_token(token_pred_1_perc, user_target)
-      self.log("val_eer_token",
-              self.val_eer_token,
-              on_step=False,
-              on_epoch=True,
-              prog_bar=True,
-              logger=True,
-              batch_size=batch_size,
-              )
-      
-
-      user_pred = torch.argmax(u_pred, dim=-1)
-      self.val_user_f1(user_pred, user_target)
-      self.log("val_user_f1",
-            self.val_user_f1,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-            batch_size=batch_size,
-            )
 
       loss = loss_token + loss_user
       self.log("val_loss_combined",
@@ -315,12 +217,11 @@ class KeyModule(pl.LightningModule):
   def test_step(self, batch, batch_idx):
     pass
 
-
   def configure_optimizers(self):
     optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0)
-    scheduler_ct = ConstantLR(optimizer, factor=1, total_iters=50)
-    scheduler_ca = CosineAnnealingLR(optimizer, T_max=50, eta_min=1e-8)
-    seq_scheduler = SequentialLR(optimizer, [scheduler_ct, scheduler_ca], milestones=[50])
+    scheduler_ct = ConstantLR(optimizer, factor=1, total_iters=25)
+    scheduler_ca = CosineAnnealingLR(optimizer, T_max=25, eta_min=1e-8)
+    seq_scheduler = SequentialLR(optimizer, [scheduler_ct, scheduler_ca], milestones=[25])
 
     lr_scheduler = {
         'scheduler': seq_scheduler,

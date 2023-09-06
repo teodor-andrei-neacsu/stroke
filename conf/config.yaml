@@ -1,35 +1,35 @@
 prep_data: False
-raw_data_path: "./Keystrokes_benchmark/clean/"
+raw_data_path: "./Keystrokes/clean/"
 
 new_finetune_data: False # changed the number of sequences per user
 
 pretrain:
   run: True
-  checkpoint_dir: "/checkpoints_bench/pre/"
+  checkpoint_dir: "/checkpoints/pre/"
 
   data:
     # path: "./Keystrokes_benchmark/not_benchmark/"
-    path: "./Keystrokes_benchmark/pretrain/"
+    path: "./Keystrokes/pretrain/"
     user_cnt: 10000 # number of users
     max_seq_len: 50 # max sequence length of typing sequence
     train_size: 12
     test_size: 3 # number of test samples /15
     num_workers: 8 # number of workers for dataloader
-    corruption_probs: [.1, .6, .3] # probabilities of corruption [positive_rate, negative_rate, corrupt_rate]
+    corruption_probs: [.1, .8, .1] # probabilities of corruption [positive_rate, negative_rate, corrupt_rate]
 
   train:
     batch_size: 4096 # batch size
     val_batch_size: 1 # DO NOT CHANGE
     val_user_cnt: 1000 # number of users for validation
     dataset_multiplier: 10 # number of times to repeat the dataset
-    max_epochs: 100 # number of epochs
-    check_val_every_n_epoch: 1
-    lr: 2e-4 # learning rate  
+    max_epochs: 50 # number of epochs
+    check_val_every_n_epoch: 2
+    lr: 5e-4 # learning rate  
 
   wandb:
-    use: False
-    project: pre_bench_mob
-    name: pre_bench_mob
+    use: True
+    project: pre_desk
+    name: pre_desk
 
 finetune:
   run: False
@@ -65,8 +65,8 @@ finetune:
 model_params:
   feat_cnt: 4
   key_cnt: 256 # number of possible keys
-  key_emb_size: 128 # key embedding size
-  dim_ff: 384 # feed forward dimension
+  key_emb_size: 256 # key embedding size
+  dim_ff: 512 # feed forward dimension
   num_heads: 12 # number of heads in multi-head attention
   num_layers: 12 # number of layers in transformer
   trf_dropout: 0.2 # transformer dropout

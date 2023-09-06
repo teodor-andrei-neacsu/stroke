@@ -5,6 +5,7 @@ from torch import Tensor
 import torch.nn as nn
 from torch.nn import functional as F
 from rot_emb import RotaryEmbedding
+from rff import GaussianFourierFeatureTransform
 
 
 class PositionalEncoding(nn.Module):
@@ -33,7 +34,6 @@ class PositionalEncoding(nn.Module):
 
     x = x + torch.autograd.Variable(self.pe[:, :seq_len], requires_grad=False)
     return x
-  
   
 class StrokeNet(nn.Module):
 
@@ -174,8 +174,6 @@ class MultiHeadRot(nn.Module):
     else:  
       self.active_dropout = 0.0
     
-
-
 class TransformerEncoderRotLayer(nn.Module):
 
   def __init__(self,
@@ -197,10 +195,6 @@ class TransformerEncoderRotLayer(nn.Module):
     self.dropout2 = nn.Dropout(dropout)
 
     self.activation = nn.SiLU()
-
-    # self.layer_scale_sa = torch.diag(torch.ones(d_model)) * 0.1
-    # self.layer_scale_ff = torch.diag(torch.ones(d_model)) * 0.1
-    
 
   def forward(self, x,  src_mask, src_key_padding_mask, is_causal):
     x = x + self.dropout1(self.multihead_rot(self.norm1(x), src_mask, src_key_padding_mask, is_causal=is_causal))
@@ -250,6 +244,7 @@ class StrokeNetRot(nn.Module):
 
     self.feat_proj = nn.Linear(feat_cnt, key_emb_size, bias=True)
     self.feat_bn = nn.BatchNorm1d(key_emb_size)
+    # self.input_rff = GaussianFourierFeatureTransform(num_input_feats=4, mapping_size=key_emb_size // 2, scale=2)
 
     self.input_mlp = nn.Sequential(
         nn.Linear(key_emb_size * 3, key_emb_size * 3),
@@ -272,6 +267,7 @@ class StrokeNetRot(nn.Module):
   def forward(self, b0, b1, feat, mask, user, attn_mask=None):
 
     feat = self.feat_proj(feat)
+    # feat = self.input_rff(feat)
 
     feat = feat.transpose(1, 2)
     feat = self.feat_bn(feat)
@@ -289,7 +285,6 @@ class StrokeNetRot(nn.Module):
 
     # MLP
     x = self.input_mlp(x)
-
     x = self.trf_cross(x, src_mask=attn_mask, src_key_padding_mask=mask, is_causal=self.causal_att)
 
     # remove user embedding

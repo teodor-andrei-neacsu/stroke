@@ -213,7 +213,7 @@ class BigramPlusDataset(Dataset):
 
         raw_sesh = eval(row['SEQUENCE'])
 
-        raw_sesh = to_event_seq(raw_sesh)
+        # raw_sesh = to_event_seq(raw_sesh)
 
         bi_feat_sesh = bigram_feat(raw_sesh, max_len=self.max_len)
 
@@ -341,7 +341,7 @@ class BigramDatasetVal(Dataset):
 
         raw_sesh = eval(row['SEQUENCE'])
 
-        raw_sesh = to_event_seq(raw_sesh)
+        # raw_sesh = to_event_seq(raw_sesh)
 
         bi_feat_sesh = bigram_feat(raw_sesh, max_len=self.max_len)
 

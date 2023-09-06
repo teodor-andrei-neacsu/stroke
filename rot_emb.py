@@ -1,9 +1,10 @@
-from math import pi, log
-
+# Copyright: lucidrains
+# https://github.com/lucidrains/rotary-embedding-torch/blob/main/rotary_embedding_torch/rotary_embedding_torch.py
 import torch
 from torch import nn, einsum
 
 from einops import rearrange, repeat
+from math import pi, log
 
 # helper functions
 

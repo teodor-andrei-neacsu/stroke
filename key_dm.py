@@ -83,11 +83,6 @@ class KeyDataModule(pl.LightningDataModule):
     b1_padded = torch.nn.utils.rnn.pad_sequence(b1,
                                                 batch_first=True,
                                                 padding_value=0)
-    
-    # print("FEAT SHAPE")
-    # print(len(feat))
-    # for f in feat:
-    #   print(f.shape)
 
     feat_padded = torch.nn.utils.rnn.pad_sequence(feat,
                                                   batch_first=True,
