@@ -17,7 +17,8 @@ class KeyDataModule(pl.LightningDataModule):
     super().__init__()
     self.root_dir = cfg.data.path
     self.user_cnt = cfg.data.user_cnt
-    self.max_seq_len = cfg.data.max_seq_len
+    self.max_seq_len_train = cfg.data.max_seq_len_train
+    self.max_seq_len_test = cfg.data.max_seq_len_test
     self.test_size = cfg.data.test_size
     self.corruption_probs = cfg.data.corruption_probs
     self.batch_size = cfg.train.batch_size
@@ -127,12 +128,12 @@ class KeyDataModule(pl.LightningDataModule):
     """
     if stage == "fit" or stage is None:      
       self.train_dataset = BigramPlusDataset(self.train_dir,
-                                         self.max_seq_len,
+                                         self.max_seq_len_train,
                                          self.corruption_probs,
                                          self.dataset_multiplier)
       
     self.val_dataset = BigramDatasetVal(self.test_dir,
-                                        self.max_seq_len,
+                                        self.max_seq_len_test,
                                         self.val_user_cnt)
 
   def train_dataloader(self):

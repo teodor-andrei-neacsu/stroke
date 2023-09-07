@@ -1,16 +1,18 @@
-prep_data: True
+prep_data: False
 raw_data_path: "./KeyDatasets/clean/mobile_users"
 
 new_finetune_data: False # changed the number of sequences per user
 
+
 pretrain:
-  run: False
+  run: True
   checkpoint_dir: "/checkpoint_desk/pre/"
 
   data:
     path: "./KeyDatasets/mobile/pretrain"
     user_cnt: 15_000 # number of users
-    max_seq_len: 50 # max sequence length of typing sequence
+    max_seq_len_train: 100 # max sequence length of typing sequence
+    max_seq_len_test: 50 # max sequence length of typing sequence
     train_size: 12
     test_size: 3 # number of test samples /15
     num_workers: 8 # number of workers for dataloader

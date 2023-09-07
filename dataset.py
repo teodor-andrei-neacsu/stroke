@@ -51,10 +51,29 @@ def bigram_feat(session, max_len):
             break
         break
 
-def new_bigram_feat(session, max_len):
-  pass
+  # truncate to max_len
+  if len(typing_features) > max_len:
+    typing_features = typing_features[:max_len]
 
-  # truncate or pad to max_len
+def new_bigram_feat(session, max_len):
+
+  typing_features = []
+  for idx, (press_ts, rel_ts, keycode) in enumerate(session):
+      
+      if idx == len(session) - 1:
+        break
+  
+      press_ts_next, rel_ts_next, keycode_next = session[idx + 1]
+  
+      hl = rel_ts - press_ts
+      il = press_ts_next - rel_ts
+      pl = press_ts_next - press_ts
+      rl = rel_ts_next - rel_ts
+  
+      typing_features.append(
+          ((keycode, keycode_next), [hl / 1000, il / 1000, pl / 1000, rl / 1000]))
+
+  # truncate to max_len
   if len(typing_features) > max_len:
     typing_features = typing_features[:max_len]
 
@@ -103,7 +122,7 @@ class BigramDataset(Dataset):
       for i, row in user_df.iterrows():
 
         raw_sesh = eval(row['SEQUENCE'])
-        bi_feat_sesh = bigram_feat(raw_sesh, max_len=self.max_len)
+        bi_feat_sesh = new_bigram_feat(raw_sesh, max_len=self.max_len)
 
         if bi_feat_sesh == []:
           continue
@@ -218,7 +237,7 @@ class BigramPlusDataset(Dataset):
 
         # raw_sesh = to_event_seq(raw_sesh)
 
-        bi_feat_sesh = bigram_feat(raw_sesh, max_len=self.max_len)
+        bi_feat_sesh = new_bigram_feat(raw_sesh, max_len=self.max_len)
 
         if bi_feat_sesh == []:
           continue
@@ -346,7 +365,7 @@ class BigramDatasetVal(Dataset):
 
         # raw_sesh = to_event_seq(raw_sesh)
 
-        bi_feat_sesh = bigram_feat(raw_sesh, max_len=self.max_len)
+        bi_feat_sesh = new_bigram_feat(raw_sesh, max_len=self.max_len)
 
         if bi_feat_sesh == []:
           continue
