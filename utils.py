@@ -69,6 +69,10 @@ def prepare_data(cfg) -> None:
   print("Preatrain and finetune data prepared.")
 
 def prepare_data_benchmark(cfg) -> None:
+  """
+  Used for testing on the TypeFormer benchmark data
+  Not used anymore. 
+  """
   
   test_users = os.listdir(cfg.finetune.data.path)
 
@@ -96,7 +100,10 @@ def cleanup_data(train_type_dir, remove_mapping=True) -> None:
   """
   # remove the mapping
   if remove_mapping:
-    os.remove(os.path.join(train_type_dir, "user_mapping.pkl"))
+    try:
+      os.remove(os.path.join(train_type_dir, "user_mapping.pkl"))
+    except:
+      print("No user mapping found to be removed.")
   # remove the user files
   train_dir = os.path.join(train_type_dir, "train")
   test_dir = os.path.join(train_type_dir, "test")

@@ -51,6 +51,9 @@ def bigram_feat(session, max_len):
             break
         break
 
+def new_bigram_feat(session, max_len):
+  pass
+
   # truncate or pad to max_len
   if len(typing_features) > max_len:
     typing_features = typing_features[:max_len]

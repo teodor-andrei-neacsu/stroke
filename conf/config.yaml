@@ -1,16 +1,15 @@
-prep_data: False
-raw_data_path: "./Keystrokes/clean/"
+prep_data: True
+raw_data_path: "./KeyDatasets/clean/mobile_users"
 
 new_finetune_data: False # changed the number of sequences per user
 
 pretrain:
-  run: True
-  checkpoint_dir: "/checkpoints/pre/"
+  run: False
+  checkpoint_dir: "/checkpoint_desk/pre/"
 
   data:
-    # path: "./Keystrokes_benchmark/not_benchmark/"
-    path: "./Keystrokes/pretrain/"
-    user_cnt: 10000 # number of users
+    path: "./KeyDatasets/mobile/pretrain"
+    user_cnt: 15_000 # number of users
     max_seq_len: 50 # max sequence length of typing sequence
     train_size: 12
     test_size: 3 # number of test samples /15
@@ -27,19 +26,19 @@ pretrain:
     lr: 5e-4 # learning rate  
 
   wandb:
-    use: True
-    project: pre_desk
-    name: pre_desk
+    use: False
+    project: pre_mob
+    name: pre_mob
+    key: "63faf0d0b57a1855a357085c29f385f911743759"
 
 finetune:
   run: False
-  checkpoint: "./checkpoints_bench/pre/epoch=63_val_eer=0.0284.ckpt"
+  checkpoint: "" # set starting checkpoint for finetuning
   checkpoint_dir: "/checkpoints_bench/fin/"
 
   data:
-    # path: "./Keystrokes_benchmark/benchmark/"
-    path: "./Keystrokes_benchmark/finetune/"
-    user_cnt: 1000 # number of users
+    path: "./KeyDatasets/mobile/finetune"
+    user_cnt: 1_000 # number of users
     max_seq_len: 50 # max sequence length of typing sequence
     train_size: 5
     test_size: 5 # the protocol in TypeNet uses 5 samples for testing
@@ -56,7 +55,7 @@ finetune:
     lr: 2e-4 # learning rate
 
   wandb:
-    use: True
+    use: False
     project: fine_bench_mob
     name: fine_bench_mob
 

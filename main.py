@@ -5,14 +5,13 @@ import torch
 import torch.nn as nn
 import lightning.pytorch as pl
 
+# faster convergence - does not lower eer
 from rff import GaussianFourierFeatureTransform
 from key_dm import KeyDataModule
 from key_module import KeyModule
 from lightning.pytorch.loggers import WandbLogger
 
 from lightning.pytorch.callbacks import LearningRateMonitor
-# from lightning.pytorch.loggers import TensorBoardLogger
-
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
@@ -23,7 +22,7 @@ def train(cfg: DictConfig, key_module):
   key_data_module = KeyDataModule(cfg)
 
   if cfg.wandb.use:
-    wandb.login(key="63faf0d0b57a1855a357085c29f385f911743759")
+    wandb.login(key=cfg.wandb.key)
     logger=WandbLogger(
             project=cfg.wandb.project,
             config=OmegaConf.to_container(cfg),
@@ -38,7 +37,7 @@ def train(cfg: DictConfig, key_module):
           monitor="val_eer",
           dirpath=os.getcwd() + cfg.checkpoint_dir,
           filename='{epoch}_{val_eer:.4f}',
-          save_top_k=1,
+          save_top_k=3,
           mode="min",
       )
   
@@ -53,7 +52,6 @@ def train(cfg: DictConfig, key_module):
         logger=logger,
         gradient_clip_val=1.0,
         log_every_n_steps=20,
-        # profiler="advanced",
         strategy="ddp",
         )
 
@@ -68,9 +66,9 @@ def main(cfg: DictConfig) -> None:
   random.seed(42)
 
   if cfg.prep_data:
-    # cleanup_data(cfg.pretrain.data.path)
-    # cleanup_data(cfg.finetune.data.path)    
-    prepare_data_benchmark(cfg)
+    cleanup_data(cfg.pretrain.data.path)
+    cleanup_data(cfg.finetune.data.path)    
+    prepare_data(cfg)
     exit()
 
   if cfg.new_finetune_data:
