@@ -5,8 +5,6 @@ from torch import Tensor
 import torch.nn as nn
 from torch.nn import functional as F
 from rot_emb import RotaryEmbedding
-from rff import GaussianFourierFeatureTransform
-
 
 class PositionalEncoding(nn.Module):
   """

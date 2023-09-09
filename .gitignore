@@ -16,3 +16,5 @@ wandb
 /benchmark*
 /not_benchmark*
 /KeyDatasets
+.gitignore*
+.DS_Store*
