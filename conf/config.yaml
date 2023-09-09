@@ -1,17 +1,17 @@
 prep_data: False
-raw_data_path: "./KeyDatasets/clean/mobile_users"
+raw_data_path: "./KeyDatasets/clean/desk_users"
 
 new_finetune_data: False # changed the number of sequences per user
 
 
 pretrain:
-  run: True
-  checkpoint_dir: "/checkpoint_desk/pre/"
+  run: False
+  checkpoint_dir: "/checkpoint_mob/pre/"
 
   data:
     path: "./KeyDatasets/mobile/pretrain"
     user_cnt: 15_000 # number of users
-    max_seq_len_train: 100 # max sequence length of typing sequence
+    max_seq_len_train: 75 # max sequence length of typing sequence
     max_seq_len_test: 50 # max sequence length of typing sequence
     train_size: 12
     test_size: 3 # number of test samples /15
@@ -19,36 +19,37 @@ pretrain:
     corruption_probs: [.1, .8, .1] # probabilities of corruption [positive_rate, negative_rate, corrupt_rate]
 
   train:
-    batch_size: 4096 # batch size
+    batch_size: 2048 # batch size
     val_batch_size: 1 # DO NOT CHANGE
     val_user_cnt: 1000 # number of users for validation
     dataset_multiplier: 10 # number of times to repeat the dataset
     max_epochs: 50 # number of epochs
-    check_val_every_n_epoch: 2
+    check_val_every_n_epoch: 5
     lr: 5e-4 # learning rate  
 
   wandb:
-    use: False
-    project: pre_mob
-    name: pre_mob
+    use: True
+    project: pre_mob_15k
+    name: pre_mob_15k
     key: "63faf0d0b57a1855a357085c29f385f911743759"
 
 finetune:
-  run: False
+  run: True
   checkpoint: "" # set starting checkpoint for finetuning
-  checkpoint_dir: "/checkpoints_bench/fin/"
+  checkpoint_dir: "/checkpoint_mob/fin/"
 
   data:
-    path: "./KeyDatasets/mobile/finetune"
+    path: "./KeyDatasets/desktop/finetune"
     user_cnt: 1_000 # number of users
-    max_seq_len: 50 # max sequence length of typing sequence
+    max_seq_len_train: 75 # max sequence length of typing sequence
+    max_seq_len_test: 50 # max sequence length of typing sequence
     train_size: 5
     test_size: 5 # the protocol in TypeNet uses 5 samples for testing
     num_workers: 8 # number of workers for dataloader
     corruption_probs: [.1, .8, .1] # probabilities of corruption [positive_rate, negative_rate, corrupt_rate]
 
   train:
-    batch_size: 4096 # batch size
+    batch_size: 2048 # batch size
     val_batch_size: 1 # DO NOT CHANGE
     val_user_cnt: 1000 # number of users for validation
     dataset_multiplier: 10 # number of times to repeat the dataset
@@ -57,9 +58,10 @@ finetune:
     lr: 2e-4 # learning rate
 
   wandb:
-    use: False
-    project: fine_bench_mob
-    name: fine_bench_mob
+    use: True
+    project: fine_mob_1k
+    name: fine_mob_1k
+    key: "" # set your wandb key here
 
   extra_info: "emb reinit"
 

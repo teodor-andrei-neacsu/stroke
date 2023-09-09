@@ -3,7 +3,7 @@ hd.sh
 hd_i.sh
 slurm*
 wandb
-/checkpoints*
+/checkpoint*
 /Keystrokes*
 /lightning_logs*
 /outputs*
