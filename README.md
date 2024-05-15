@@ -1,4 +1,4 @@
-## DoubleStrokeNet: Bigram-Level Keystroke Authentication
+## [DoubleStrokeNet: Bigram-Level Keystroke Authentication](https://doi.org/10.3390/electronics12204309)
 
 The method analyzes the unique typing patterns of individuals to verify their identity while interacting with the keyboard, both virtual and hardware. Current deep learning approaches like TypeNet and TypeFormer focus on generating biometric signatures as embeddings for the entire typing sequence. The authentication process is defined using Euclidean distances between the new typing embedding and the saved biometric signatures. This paper proposes a new approach, called DoubleStrokeNet, to authenticate users through keystroke analysis using bigram embeddings. Instead of analyzing entire sequences, the model focuses on the temporal features of bigrams to learn user embeddings. The model employs a Transformer-based neural network to distinguish between bigrams and utilizes self-supervised learning to learn embeddings for bigrams and users.
 
